@@ -38,5 +38,9 @@ USER 10001
 
 EXPOSE 8080
 
+# Docker checks the app is still responding (KICS "Healthcheck Instruction Missing")
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '8080') + '/healthz', timeout=3)"]
+
 # The app is copied to /app/app, so gunicorn starts from there.
 CMD ["gunicorn", "--chdir", "app", "app:app"]
