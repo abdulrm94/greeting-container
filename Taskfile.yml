@@ -1,0 +1,49 @@
+version: '3'
+
+vars:
+  IMAGE: sample-app
+  TAG: dev
+  CONTAINER: sample-app-smoke
+  # Pinned scanner versions
+  HADOLINT_IMAGE: hadolint/hadolint:v2.15.1
+  KICS_IMAGE: checkmarx/kics:v2.1.20
+  TRIVY_IMAGE: aquasec/trivy:0.75.0
+
+tasks:
+  lint:
+    desc: Check the Dockerfile for mistakes and security issues
+    cmds:
+      # Report only for now
+      - cmd: docker run --rm -i {{.HADOLINT_IMAGE}} < Dockerfile
+        ignore_error: true
+      - cmd: docker run --rm -v "{{.ROOT_DIR}}:/path" {{.KICS_IMAGE}} scan -p /path/Dockerfile --no-progress --disable-secrets --ci --disable-full-descriptions
+        ignore_error: true
+
+  build:
+    desc: Build the image
+    cmds:
+      - docker build -t {{.IMAGE}}:{{.TAG}} .
+
+  test:
+    desc: Start the app and check its pages respond
+    deps: [build]
+    cmds:
+      - docker run -d --rm --name {{.CONTAINER}} -p 8080:8080 {{.IMAGE}}:{{.TAG}}
+      # Always stop the container
+      - defer: docker stop {{.CONTAINER}}
+      # Wait for the app to start
+      - curl -fsS --retry 10 --retry-all-errors --retry-delay 1 http://localhost:8080/healthz
+      - curl -fsS http://localhost:8080/
+      - curl -fsS http://localhost:8080/info
+
+  scan:
+    desc: Scan the image for known security vulnerabilities
+    cmds:
+      - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock {{.TRIVY_IMAGE}} image --quiet --table-mode summary --severity HIGH,CRITICAL {{.IMAGE}}:{{.TAG}}
+
+  ci:
+    desc: Run all checks
+    cmds:
+      - task: lint
+      - task: test
+      - task: scan
