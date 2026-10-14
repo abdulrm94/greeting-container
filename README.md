@@ -112,6 +112,22 @@ GitHub Actions (`.github/workflows/ci.yml`) runs `task lint`, `task test` and `t
 -   Actions are pinned to commit SHAs rather than tags, so the code they run can't change underneath the pipeline.
 -   Dependabot (`.github/dependabot.yml`) checks weekly for new versions of the actions and the base image.
 
+### Publishing
+
+The image is published to the GitHub Container Registry as `ghcr.io/abdulrm94/sample-app`.
+
+```bash
+docker pull ghcr.io/abdulrm94/sample-app:v1
+docker run --rm -p 8080:8080 ghcr.io/abdulrm94/sample-app:v1
+```
+
+Publishing is done by the `publish` job in the CI workflow, not by hand:
+
+1.  It only runs when a version tag such as `v1` is pushed, and only if the checks pass.
+2.  It waits for manual approval in the `production` environment. Only tags matching `v*` can use the environment, and administrators can't bypass the approval.
+3.  It logs in with the workflow's temporary `GITHUB_TOKEN`, so no personal access token is stored.
+4.  It pushes the image tagged with the version (`v1`) and the commit (`sha-...`). It never pushes `latest`.
+
 ### Remaining vulnerabilities
 
 Trivy reports 44 HIGH/CRITICAL vulnerabilities in the base image's operating system packages. None of them has a fix available yet. The scan fails the build on HIGH/CRITICAL vulnerabilities **with** a fix, so when Debian releases one, Dependabot's base image update must be applied for the build to pass.
