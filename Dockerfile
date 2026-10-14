@@ -19,6 +19,10 @@ LABEL org.opencontainers.image.title="sample-app" \
 # Send logs straight to the console
 ENV PYTHONUNBUFFERED=1
 
+# Default port and number of workers. Gunicorn reads these itself, so they can be changed without a rebuild.
+ENV PORT=8080 \
+    WEB_CONCURRENCY=2
+
 # Run as a non-root user (KICS "Missing User Instruction")
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --no-log-init --no-create-home --shell /usr/sbin/nologin app
@@ -35,4 +39,4 @@ USER 10001
 EXPOSE 8080
 
 # The app is copied to /app/app, so gunicorn starts from there.
-CMD ["gunicorn", "--chdir", "app", "--bind", "0.0.0.0:8080", "--workers", "2", "app:app"]
+CMD ["gunicorn", "--chdir", "app", "app:app"]
