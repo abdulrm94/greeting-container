@@ -13,11 +13,8 @@ tasks:
   lint:
     desc: Check the Dockerfile for mistakes and security issues
     cmds:
-      # Report only for now
-      - cmd: docker run --rm -i {{.HADOLINT_IMAGE}} < Dockerfile
-        ignore_error: true
-      - cmd: docker run --rm -v "{{.ROOT_DIR}}:/path" {{.KICS_IMAGE}} scan -p /path/Dockerfile --no-progress --disable-secrets --ci --disable-full-descriptions
-        ignore_error: true
+      - docker run --rm -i {{.HADOLINT_IMAGE}} < Dockerfile
+      - docker run --rm -v "{{.ROOT_DIR}}:/path" {{.KICS_IMAGE}} scan -p /path/Dockerfile --no-progress --disable-secrets --ci --disable-full-descriptions
 
   build:
     desc: Build the image
@@ -39,7 +36,8 @@ tasks:
   scan:
     desc: Scan the image for known security vulnerabilities
     cmds:
-      - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock {{.TRIVY_IMAGE}} image --quiet --table-mode summary --severity HIGH,CRITICAL {{.IMAGE}}:{{.TAG}}
+      # Fail on HIGH or CRITICAL vulnerabilities that have a fix available
+      - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock {{.TRIVY_IMAGE}} image --quiet --table-mode summary --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 {{.IMAGE}}:{{.TAG}}
 
   ci:
     desc: Run all checks
